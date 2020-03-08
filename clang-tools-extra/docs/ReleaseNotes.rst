@@ -179,6 +179,11 @@ New checks
   Finds types that could be made trivially-destructible by removing out-of-line
   defaulted destructor declarations.
 
+- New :doc:`quantum-interface-conformity
+  <clang-tidy/checks/quantum-interface-conformity>` check.
+
+  Finds interfaces that break Quantum code guidelines.
+
 - New :doc:`readability-make-member-function-const
   <clang-tidy/checks/readability-make-member-function-const>` check.
 
