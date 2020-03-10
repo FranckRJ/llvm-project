@@ -20,11 +20,13 @@ namespace {
 
 bool checkDestructorConformity(const CXXRecordDecl &InterfaceDecl) {
   return (InterfaceDecl.getDestructor() != nullptr &&
-          InterfaceDecl.getDestructor()->isVirtual());
+          InterfaceDecl.getDestructor()->isVirtual() &&
+          InterfaceDecl.getDestructor()->isDefaulted());
 }
 
-bool checkMethodConformity(const CXXMethodDecl &MethodDecl) {
-  return (!MethodDecl.isUserProvided() || MethodDecl.isPure());
+bool checkMethodConformity(const CXXMethodDecl &MethDecl) {
+  return (!MethDecl.isUserProvided() || MethDecl.isPure() ||
+          isa<CXXDestructorDecl>(MethDecl));
 }
 
 } // namespace
@@ -42,26 +44,26 @@ void InterfaceConformityCheck::check(const MatchFinder::MatchResult &Result) {
 
   if (!checkDestructorConformity(*InterfaceDecl)) {
     diag(InterfaceDecl->getLocation(),
-         "interface %0 has a non virtual destructor")
+         "interface %0 has a non defaulted virtual destructor")
         << InterfaceDecl;
   }
 
-  for (auto MethodDecl : InterfaceDecl->methods()) {
-    if (!checkMethodConformity(*MethodDecl)) {
-      diag(MethodDecl->getLocation(),
+  for (auto MethDecl : InterfaceDecl->methods()) {
+    if (!checkMethodConformity(*MethDecl)) {
+      diag(MethDecl->getLocation(),
            "method %0 is not virtual pure in interface %1")
-          << MethodDecl << InterfaceDecl;
+          << MethDecl << InterfaceDecl;
     }
   }
 
   InterfaceDecl->forallBases(
       [InterfaceDecl, this](const CXXRecordDecl *BaseDecl) {
-        for (auto MethodDecl : BaseDecl->methods()) {
-          if (!checkMethodConformity(*MethodDecl)) {
-            diag(MethodDecl->getLocation(),
+        for (auto MethDecl : BaseDecl->methods()) {
+          if (!checkMethodConformity(*MethDecl)) {
+            diag(MethDecl->getLocation(),
                  "method %0 is not virtual pure in base "
                  "class %1 of interface %2")
-                << MethodDecl << BaseDecl << InterfaceDecl;
+                << MethDecl << BaseDecl << InterfaceDecl;
           }
         }
         return true;
