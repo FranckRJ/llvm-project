@@ -32,13 +32,13 @@ bool checkMethodConformity(const CXXMethodDecl &MethodDecl) {
 void InterfaceConformityCheck::registerMatchers(MatchFinder *Finder) {
   Finder->addMatcher(
       cxxRecordDecl(isDefinition(), matchesName("::I[A-Z][^:]*$"))
-          .bind("QuantumInterfaceMatcher"),
+          .bind("interface_decl"),
       this);
 }
 
 void InterfaceConformityCheck::check(const MatchFinder::MatchResult &Result) {
   const auto *InterfaceDecl =
-      Result.Nodes.getNodeAs<CXXRecordDecl>("QuantumInterfaceMatcher");
+      Result.Nodes.getNodeAs<CXXRecordDecl>("interface_decl");
 
   if (!checkDestructorConformity(*InterfaceDecl)) {
     diag(InterfaceDecl->getLocation(),
