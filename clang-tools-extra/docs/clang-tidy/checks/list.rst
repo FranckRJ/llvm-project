@@ -251,7 +251,8 @@ Clang-Tidy Checks
    `performance-unnecessary-copy-initialization <performance-unnecessary-copy-initialization.html>`_,
    `performance-unnecessary-value-param <performance-unnecessary-value-param.html>`_, "Yes"
    `portability-simd-intrinsics <portability-simd-intrinsics.html>`_,
-   `quantum-interface-conformity <quantum-interface-conformity.html>`_, "Yes"
+   `quantum-interface-conformity <quantum-interface-conformity.html>`_,
+   `quantum-naming-acronyms <quantum-naming-acronyms.html>`_, "Yes"
    `readability-avoid-const-params-in-decls <readability-avoid-const-params-in-decls.html>`_,
    `readability-braces-around-statements <readability-braces-around-statements.html>`_, "Yes"
    `readability-const-return-type <readability-const-return-type.html>`_, "Yes"

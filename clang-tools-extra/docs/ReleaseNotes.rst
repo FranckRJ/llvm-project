@@ -184,6 +184,11 @@ New checks
 
   Finds interfaces that break Quantum code guidelines.
 
+- New :doc:`quantum-naming-acronyms
+  <clang-tidy/checks/quantum-naming-acronyms>` check.
+
+  Finds acronyms that aren't writed in uppercase.
+
 - New :doc:`readability-make-member-function-const
   <clang-tidy/checks/readability-make-member-function-const>` check.
 

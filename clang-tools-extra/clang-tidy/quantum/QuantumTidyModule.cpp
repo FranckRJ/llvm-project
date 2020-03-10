@@ -10,6 +10,7 @@
 #include "../ClangTidyModule.h"
 #include "../ClangTidyModuleRegistry.h"
 #include "InterfaceConformityCheck.h"
+#include "NamingAcronymsCheck.h"
 
 namespace clang {
 namespace tidy {
@@ -20,6 +21,8 @@ public:
   void addCheckFactories(ClangTidyCheckFactories &CheckFactories) override {
     CheckFactories.registerCheck<InterfaceConformityCheck>(
         "quantum-interface-conformity");
+    CheckFactories.registerCheck<NamingAcronymsCheck>(
+        "quantum-naming-acronyms");
   }
 };
 
