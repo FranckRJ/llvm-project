@@ -1,8 +1,11 @@
 #pragma once
 
+#include <string>
+
 namespace dsg
 {
-    class Utils
+    namespace Utils
     {
-    };
+        void removeTrailingNewline(std::string& str);
+    } // namespace Utils
 } // namespace dsg

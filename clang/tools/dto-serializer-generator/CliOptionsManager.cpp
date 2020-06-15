@@ -1,19 +1,19 @@
 #include "CliOptionsManager.hpp"
 
+#include <algorithm>
 #include <iostream>
 #include <stdexcept>
 
+#include <fmt/format.h>
+
+#include "Utils.hpp"
+
 namespace dsg
 {
-    namespace
+    CliOptionsManager::CliOptionsManager(Command command, int argc, const char** argv)
+        : _command{std::move(command)}, _optionCategory(_command.name)
     {
-        // What is its purpose ?
-        static llvm::cl::OptionCategory DtoSerializerGeneratorCategory("dto-serializer-generator");
-    } // namespace
-
-    CliOptionsManager::CliOptionsManager(std::vector<std::string> possibleOptions, int argc, const char** argv)
-    {
-        for (const auto& possibleOption : possibleOptions)
+        for (const auto& possibleOption : _command.possibleOptions)
         {
             _options[possibleOption] = "";
         }
@@ -27,30 +27,40 @@ namespace dsg
                 fillClangOptionsFromCli(argc - i - 1, argv + i + 1);
                 break;
             }
+            else if (currArg == "--help" || currArg == "-h")
+            {
+                setErrorMode();
+                return;
+            }
             else if (!currArg.empty() && currArg[0] == '-')
             {
-                if (applyProcessing(argc, argv, i, &CliOptionsManager::setOptionFromCli))
+                if (!applyProcessing(argc, argv, i, &CliOptionsManager::setOptionFromCli))
                 {
-                    continue;
+                    return;
                 }
             }
             else
             {
-                if (applyProcessing(argc, argv, i, &CliOptionsManager::processNotOptionArg))
+                if (!applyProcessing(argc, argv, i, &CliOptionsManager::processNotOptionArg))
                 {
-                    continue;
+                    return;
                 }
             }
-
-            printHelp();
-            _commandIsValid = false;
-            return;
         }
 
         if (_filesToCheck.empty())
         {
-            printHelp();
-            _commandIsValid = false;
+            setErrorMode("No file to scan passed as argument.");
+            return;
+        }
+
+        for (const auto& [option, value] : _options)
+        {
+            if (option.requirement == OptionReq::Mandatory && value.empty())
+            {
+                setErrorMode("Missing mandatory option '" + option.name + "'.");
+                return;
+            }
         }
     }
 
@@ -66,7 +76,7 @@ namespace dsg
             throw std::runtime_error{"Lol what are you doing ?"};
         }
 
-        _fakeArgv.push_back("dto-serializer-generator");
+        _fakeArgv.push_back(_command.name.c_str());
 
         for (const auto& fileToCheck : _filesToCheck)
         {
@@ -87,12 +97,21 @@ namespace dsg
         _fakeArgc = _fakeArgv.size();
         _fakeArgv.push_back(nullptr);
 
-        return clang::tooling::CommonOptionsParser{_fakeArgc, _fakeArgv.data(), DtoSerializerGeneratorCategory};
+        return clang::tooling::CommonOptionsParser{_fakeArgc, _fakeArgv.data(), _optionCategory};
     }
 
     std::string CliOptionsManager::getOptionValue(const std::string& optionName)
     {
-        return _options[optionName];
+        auto ite = _options.find(optionName);
+
+        if (ite != _options.end())
+        {
+            return ite->second;
+        }
+        else
+        {
+            return "";
+        }
     }
 
     bool CliOptionsManager::applyProcessing(int argc, const char** argv, int& idx,
@@ -130,6 +149,7 @@ namespace dsg
             }
         }
 
+        setErrorMode("Unknown option '" + std::string{argv[0]} + "'.");
         return -1;
     }
 
@@ -141,11 +161,45 @@ namespace dsg
             return 1;
         }
 
+        setErrorMode("No more args to process.");
         return -1;
+    }
+
+    void CliOptionsManager::setErrorMode(const std::string& reason)
+    {
+        _commandIsValid = false;
+
+        if (!reason.empty())
+        {
+            std::cerr << "ERROR: " << reason << "\n\n";
+        }
+
+        printHelp();
     }
 
     void CliOptionsManager::printHelp()
     {
-        std::cerr << "Useful help.\n";
+        static std::string helpTemplate = R"-(USAGE: {0} file [file ...] [{0}-options] [-- [clang-options]]
+
+OPTIONS:
+file                                    The files to scan.
+{1:<40}The options specific to {0}.
+clang-options                           The options to pass to clang.
+
+{0} options:
+{2})-";
+
+        static std::string optionTemplate = R"-({0:<40}{1})-";
+
+        std::string optionText;
+
+        for (const Option& option : _command.possibleOptions)
+        {
+            optionText += fmt::format(optionTemplate, option.name + " " + option.kindOfValue, option.description);
+            optionText += "\n";
+        }
+        Utils::removeTrailingNewline(optionText);
+
+        std::cerr << fmt::format(helpTemplate, _command.name, _command.name + "-options", optionText);
     }
 } // namespace dsg

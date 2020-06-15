@@ -401,11 +401,17 @@ public:
     }
 };
 
-static cl::OptionCategory DtoSerializerGeneratorCategory("dto-serializer-generator");
-
 int main(int argc, const char** argv)
 {
-    dsg::CliOptionsManager optManager{{"-o", "-c"}, argc - 1, argv + 1};
+    using OptionReq = dsg::CliOptionsManager::OptionReq;
+
+    dsg::CliOptionsManager::Command command{
+        "dto-serializer-generator",
+        {{"-o", "directory", "Output folder where to write files.", OptionReq::Mandatory},
+         {"-c", "class_name", "The name of the class for which the serializer will be generated.",
+          OptionReq::Mandatory}}};
+
+    dsg::CliOptionsManager optManager{command, argc - 1, argv + 1};
 
     if (optManager.commandIsValid())
     {
