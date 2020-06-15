@@ -2,6 +2,10 @@ set(LLVM_LINK_COMPONENTS support)
 
 add_clang_tool(dto-serializer-generator
         main.cpp
+        CliOptionsManager.cpp
+        CliOptionsManager.hpp
+        Utils.cpp
+        Utils.hpp
         )
 
 set(DTO_SERIALIZER_GENERATOR_LIB_DEPS

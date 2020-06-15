@@ -11,6 +11,8 @@
 #include "clang/Tooling/CommonOptionsParser.h"
 #include "clang/Tooling/Tooling.h"
 
+#include "CliOptionsManager.hpp"
+
 using namespace clang::tooling;
 using namespace clang;
 using namespace llvm;
@@ -401,23 +403,21 @@ public:
 
 static cl::OptionCategory DtoSerializerGeneratorCategory("dto-serializer-generator");
 
-static cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
-
-static cl::extrahelp MoreHelp("\nGenerate automatically code for serializing and deserializing a DTO.\n");
-
 int main(int argc, const char** argv)
 {
-    cl::opt<std::string> optDirectoryForGeneration("dir", cl::NotHidden,
-                                                   cl::desc("Source file where to write serializer code."));
-    cl::opt<std::string> optDtoToSerialize("dto", cl::NotHidden,
-                                           cl::desc("The DTO for which the serializer will be generated."));
+    dsg::CliOptionsManager optManager{{"-o", "-c"}, argc - 1, argv + 1};
 
-    CommonOptionsParser op(argc, argv, DtoSerializerGeneratorCategory);
-    directoryForGeneration = optDirectoryForGeneration;
-    dtoToSerialize = optDtoToSerialize;
+    if (optManager.commandIsValid())
+    {
+        CommonOptionsParser op = optManager.buildOptionsParser();
+        directoryForGeneration = optManager.getOptionValue("-o");
+        dtoToSerialize = optManager.getOptionValue("-c");
 
-    ClangTool tool(op.getCompilations(), op.getSourcePathList());
-    int result = tool.run(newFrontendActionFactory<DtoSerializerGeneratorFrontendAction>().get());
-
-    return result;
+        ClangTool tool(op.getCompilations(), op.getSourcePathList());
+        return tool.run(newFrontendActionFactory<DtoSerializerGeneratorFrontendAction>().get());
+    }
+    else
+    {
+        return 0;
+    }
 }

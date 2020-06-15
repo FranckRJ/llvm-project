@@ -16,13 +16,4 @@ BreakStringLiterals: false
 BreakConstructorInitializers: BeforeComma
 BreakInheritanceList: BeforeComma
 ConstructorInitializerAllOnOneLineOrOnePerLine: true
-IncludeBlocks: Regroup
-IncludeCategories:
-  - Regex:          '^<[^.]*$'
-    Priority:       1
-  - Regex:          '^<.*\.'
-    Priority:       2
-  - Regex:          '^"'
-    Priority:       3
-  - Regex:          '.*'
-    Priority:       4
+SortIncludes: false
