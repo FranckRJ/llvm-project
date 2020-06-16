@@ -136,20 +136,20 @@ static const std::string serializePrimitiveTemplate = R"-(        obj.set(g_{4}{
 static const std::string deserializePrimitiveTemplate = R"-(        dto.{8} = obj.getValue<{7}>(g_{4}{10});)-";
 
 static const std::string serializeDtoTemplate =
-    R"-(        Poco::JSON::Object subObj{10} = JsonDtoBuilder<{7}>::serializeToObject(dto.{8});
-        obj.set(g_{4}{10}, subObj{10});)-";
+    R"-(        Poco::JSON::Object {9}SubObj = JsonDtoBuilder<{7}>::serializeToObject(dto.{8});
+        obj.set(g_{4}{10}, std::move({9}SubObj));)-";
 
 static const std::string deserializeDtoTemplate =
-    R"-(        Poco::JSON::Object::Ptr subObjPtr{10} = obj.getObject(g_{4}{10});
-        dto.{8} = JsonDtoBuilder<{7}>::deserializeFromObject(*subObjPtr{10});)-";
+    R"-(        Poco::JSON::Object::Ptr {9}SubObjPtr = obj.getObject(g_{4}{10});
+        dto.{8} = JsonDtoBuilder<{7}>::deserializeFromObject(*{9}SubObjPtr);)-";
 
 static const std::string serializeDtoListTemplate =
-    R"-(        Poco::JSON::Array subArr{10} = JsonDtoBuilder<{7}>::serializeToArray(dto.{8});
-        obj.set(g_{4}{10}, subArr{10});)-";
+    R"-(        Poco::JSON::Array {9}SubArr = JsonDtoBuilder<{7}>::serializeToArray(dto.{8});
+        obj.set(g_{4}{10}, std::move({9}SubArr));)-";
 
 static const std::string deserializeDtoListTemplate =
-    R"-(        Poco::JSON::Array::Ptr subArrPtr{10} = obj.getArray(g_{4}{10});
-        dto.{8} = JsonDtoBuilder<{7}>::deserializeFromArray(*subArrPtr{10});)-";
+    R"-(        Poco::JSON::Array::Ptr {9}SubArrPtr = obj.getArray(g_{4}{10});
+        dto.{8} = JsonDtoBuilder<{7}>::deserializeFromArray(*{9}SubArrPtr);)-";
 
 std::string formatTemplateWithDtoReplacements(const std::string& strTemplate, const DtoStringReplacements& replacements)
 {
