@@ -115,13 +115,13 @@ namespace dsg
     }
 
     bool CliOptionsManager::applyProcessing(int argc, const char** argv, int& idx,
-                                            int (CliOptionsManager::*processFunc)(int, const char**))
+                                            std::optional<int> (CliOptionsManager::*processFunc)(int, const char**))
     {
-        int nbOfProceedArgs = (this->*processFunc)(argc - idx, argv + idx);
+        std::optional<int> nbOfProceedArgs = (this->*processFunc)(argc - idx, argv + idx);
 
-        if (nbOfProceedArgs > 0)
+        if (nbOfProceedArgs)
         {
-            idx += (nbOfProceedArgs - 1);
+            idx += (*nbOfProceedArgs - 1);
             return true;
         }
 
@@ -136,7 +136,7 @@ namespace dsg
         }
     }
 
-    int CliOptionsManager::setOptionFromCli(int argc, const char** argv)
+    std::optional<int> CliOptionsManager::setOptionFromCli(int argc, const char** argv)
     {
         if (argc > 1)
         {
@@ -150,10 +150,10 @@ namespace dsg
         }
 
         setErrorMode("Unknown option '" + std::string{argv[0]} + "'.");
-        return -1;
+        return std::nullopt;
     }
 
-    int CliOptionsManager::processNotOptionArg(int argc, const char** argv)
+    std::optional<int> CliOptionsManager::processNotOptionArg(int argc, const char** argv)
     {
         if (argc > 0)
         {
@@ -162,7 +162,7 @@ namespace dsg
         }
 
         setErrorMode("No more args to process.");
-        return -1;
+        return std::nullopt;
     }
 
     void CliOptionsManager::setErrorMode(const std::string& reason)

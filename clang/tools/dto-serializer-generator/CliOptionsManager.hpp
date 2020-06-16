@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -41,13 +42,13 @@ namespace dsg
 
     private:
         bool applyProcessing(int argc, const char** argv, int& idx,
-                             int (CliOptionsManager::*processFunc)(int, const char**));
+                             std::optional<int> (CliOptionsManager::*processFunc)(int, const char**));
 
         void fillClangOptionsFromCli(int argc, const char** argv);
 
-        int setOptionFromCli(int argc, const char** argv);
+        std::optional<int> setOptionFromCli(int argc, const char** argv);
 
-        int processNotOptionArg(int argc, const char** argv);
+        std::optional<int> processNotOptionArg(int argc, const char** argv);
 
         void setErrorMode(const std::string& reason = "");
 
