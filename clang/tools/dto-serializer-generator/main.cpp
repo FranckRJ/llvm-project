@@ -12,6 +12,7 @@
 #include "clang/Tooling/Tooling.h"
 
 #include "CliOptionsManager.hpp"
+#include "Utils.hpp"
 
 using namespace clang::tooling;
 using namespace clang;
@@ -22,6 +23,25 @@ namespace fs = std::filesystem;
 std::string directoryForGeneration;
 std::string dtoToSerialize;
 PrintingPolicy pp{LangOptions{}};
+
+struct DtoStringReplacements
+{
+    std::string fileNameOfDef;                  // {0}
+    std::string type;                           // {1}
+    std::string typeCamelCase;                  // {2}
+    std::string typePascalCase;                 // {3}
+    std::string typeCamelCaseWithoutDtoSuffix;  // {4}
+    std::string typePascalCaseWithoutDtoSuffix; // {5}
+    std::string typeAllLowerCase;               // {6}
+};
+
+struct MemberStringReplacements
+{
+    std::string type;           // {7}
+    std::string name;           // {8}
+    std::string nameCamelCase;  // {9}
+    std::string namePascalCase; // {10}
+};
 
 // 0 = DTO include.
 // 1 = constant definitions.
@@ -61,9 +81,6 @@ namespace qs {{ namespace userinteraction {{ namespace business
 }}}}}}
 )-";
 
-// 0 = DTO include.
-// 1 = DTO Type in PascaleCase.
-// 2 = DTO Type.
 static const std::string interfaceHeaderTemplate =
     R"-(#pragma once
 
@@ -77,10 +94,10 @@ namespace qs
         namespace business
         {{
             /*!
-             * \class I{1}Serializer
-             * \brief Interface serializing and deserializing between {2} and string.
+             * \class I{3}Serializer
+             * \brief Interface serializing and deserializing between {1} and string.
              */
-            class I{1}Serializer : public ISpecificDtoSerializer<{2}>
+            class I{3}Serializer : public ISpecificDtoSerializer<{1}>
             {{
             }};
         }}
@@ -88,13 +105,10 @@ namespace qs
 }}
 )-";
 
-// 0 = DTO Type in all lower case.
-// 1 = DTO Type in PascalCase.
-// 2 = DTO Type.
 static const std::string implementationHeaderTemplate =
     R"-(#pragma once
 
-#include "i{0}serializer.h"
+#include "i{6}serializer.h"
 #include "basejsondtoserializer.h"
 
 namespace qs
@@ -104,10 +118,10 @@ namespace qs
         namespace business
         {{
             /*!
-             * \class Json{1}Serializer
-             * \brief Class serializing and deserializing between {2} and JSON string.
+             * \class Json{3}Serializer
+             * \brief Class serializing and deserializing between {1} and JSON string.
              */
-            class Json{1}Serializer : public BaseJsonDtoSerializer<I{1}Serializer>
+            class Json{3}Serializer : public BaseJsonDtoSerializer<I{3}Serializer>
             {{
             }};
         }}
@@ -115,53 +129,45 @@ namespace qs
 }}
 )-";
 
-// 0 = DTO type in camelCase, without DTO at the end.
-// 1 = member name in PascalCase.
-// 2 = member name in camelCase.
-static const std::string constantDefinitionTemplate = R"-(        constexpr auto const& g_{0}{1}{{ "{2}" }};)-";
+static const std::string constantDefinitionTemplate = R"-(        constexpr auto const& g_{4}{10}{{ "{9}" }};)-";
 
-// 0 = DTO type in camelCase, without DTO at the end.
-// 1 = member name in PascalCase.
-// 2 = member name.
-static const std::string serializePrimitiveTemplate = R"-(        obj.set(g_{0}{1}, dto.{2});)-";
+static const std::string serializePrimitiveTemplate = R"-(        obj.set(g_{4}{10}, dto.{8});)-";
 
-// 0 = member name.
-// 1 = Type of member.
-// 2 = DTO type in camelCase, without DTO at the end.
-// 3 = member name in PascalCase.
-static const std::string deserializePrimitiveTemplate = R"-(        dto.{0} = obj.getValue<{1}>(g_{2}{3});)-";
+static const std::string deserializePrimitiveTemplate = R"-(        dto.{8} = obj.getValue<{7}>(g_{4}{10});)-";
 
-// 0 = DTO type in camelCase, without DTO at the end.
-// 1 = member name in PascalCase.
-// 2 = member unqualified type.
-// 3 = member name.
 static const std::string serializeDtoTemplate =
-    R"-(        Poco::JSON::Object subObj{1} = JsonDtoBuilder<{2}>::serializeToObject(dto.{3});
-        obj.set(g_{0}{1}, subObj{1});)-";
+    R"-(        Poco::JSON::Object subObj{10} = JsonDtoBuilder<{7}>::serializeToObject(dto.{8});
+        obj.set(g_{4}{10}, subObj{10});)-";
 
-// 0 = member name.
-// 1 = member unqualified type.
-// 2 = DTO type in camelCase, without DTO at the end.
-// 3 = member name in PascalCase.
 static const std::string deserializeDtoTemplate =
-    R"-(        Poco::JSON::Object::Ptr subObjPtr{3} = obj.getObject(g_{2}{3});
-        dto.{0} = JsonDtoBuilder<{1}>::deserializeFromObject(*subObjPtr{3});)-";
+    R"-(        Poco::JSON::Object::Ptr subObjPtr{10} = obj.getObject(g_{4}{10});
+        dto.{8} = JsonDtoBuilder<{7}>::deserializeFromObject(*subObjPtr{10});)-";
 
-// 0 = DTO type in camelCase, without DTO at the end.
-// 1 = member name in PascalCase.
-// 2 = member unqualified type.
-// 3 = member name.
 static const std::string serializeDtoListTemplate =
-    R"-(        Poco::JSON::Array subArr{1} = JsonDtoBuilder<{2}>::serializeToArray(dto.{3});
-        obj.set(g_{0}{1}, subArr{1});)-";
+    R"-(        Poco::JSON::Array subArr{10} = JsonDtoBuilder<{7}>::serializeToArray(dto.{8});
+        obj.set(g_{4}{10}, subArr{10});)-";
 
-// 0 = member name.
-// 1 = member unqualified type.
-// 2 = DTO type in camelCase, without DTO at the end.
-// 3 = member name in PascalCase.
 static const std::string deserializeDtoListTemplate =
-    R"-(        Poco::JSON::Array::Ptr subArrPtr{3} = obj.getArray(g_{2}{3});
-        dto.{0} = JsonDtoBuilder<{1}>::deserializeFromArray(*subArrPtr{3});)-";
+    R"-(        Poco::JSON::Array::Ptr subArrPtr{10} = obj.getArray(g_{4}{10});
+        dto.{8} = JsonDtoBuilder<{7}>::deserializeFromArray(*subArrPtr{10});)-";
+
+std::string formatTemplateWithDtoReplacements(const std::string& strTemplate, const DtoStringReplacements& replacements)
+{
+    return fmt::format(strTemplate, replacements.fileNameOfDef, replacements.type, replacements.typeCamelCase,
+                       replacements.typePascalCase, replacements.typeCamelCaseWithoutDtoSuffix,
+                       replacements.typePascalCaseWithoutDtoSuffix, replacements.typeAllLowerCase);
+}
+
+std::string formatTemplateWithDtoAndMemberReplacements(const std::string& strTemplate,
+                                                       const DtoStringReplacements& dtoReplacements,
+                                                       const MemberStringReplacements& memberReplacements)
+{
+    return fmt::format(strTemplate, dtoReplacements.fileNameOfDef, dtoReplacements.type, dtoReplacements.typeCamelCase,
+                       dtoReplacements.typePascalCase, dtoReplacements.typeCamelCaseWithoutDtoSuffix,
+                       dtoReplacements.typePascalCaseWithoutDtoSuffix, dtoReplacements.typeAllLowerCase,
+                       memberReplacements.type, memberReplacements.name, memberReplacements.nameCamelCase,
+                       memberReplacements.namePascalCase);
+}
 
 class DtoSerializerGeneratorVisitor : public RecursiveASTVisitor<DtoSerializerGeneratorVisitor>
 {
@@ -284,24 +290,33 @@ public:
         fs::path root{directoryForGeneration};
         root.make_preferred();
 
-        const std::string dtoType = dtoToSerialize;
-        const std::string allLowerDtoType = lowerAllLetters(dtoType);
-        const std::string camelCaseDtoType = camelCaseWord(dtoType);
-        const std::string camelCaseDtoTypeWithoutDtoSuffix = removeDtoSuffix(camelCaseDtoType);
-        const std::string pascalCaseDtoType = pascalCaseWord(dtoType);
+        const DtoStringReplacements dtoStrReplacements = [&]() {
+            DtoStringReplacements replacements;
+
+            replacements.fileNameOfDef = currentFile.filename().string();
+            replacements.type = dtoToSerialize;
+            replacements.typeCamelCase = camelCaseWord(replacements.type);
+            replacements.typePascalCase = pascalCaseWord(replacements.type);
+            replacements.typeCamelCaseWithoutDtoSuffix = removeDtoSuffix(replacements.typeCamelCase);
+            replacements.typePascalCaseWithoutDtoSuffix = removeDtoSuffix(replacements.typePascalCase);
+            replacements.typeAllLowerCase = lowerAllLetters(replacements.type);
+
+            return replacements;
+        }();
 
         {
-            std::ofstream interfaceHeaderFile{root / ("i" + allLowerDtoType + "serializer.h")};
-            interfaceHeaderFile << fmt::format(interfaceHeaderTemplate, currentFile.filename().string(),
-                                               pascalCaseDtoType, dtoType);
+            std::ofstream interfaceHeaderFile{root / ("i" + dtoStrReplacements.typeAllLowerCase + "serializer.h")};
+            interfaceHeaderFile << formatTemplateWithDtoReplacements(interfaceHeaderTemplate, dtoStrReplacements);
         }
         {
-            std::ofstream implementationHeaderFile{root / ("json" + allLowerDtoType + "serializer.h")};
-            implementationHeaderFile << fmt::format(implementationHeaderTemplate, allLowerDtoType, pascalCaseDtoType,
-                                                    dtoType);
+            std::ofstream implementationHeaderFile{root /
+                                                   ("json" + dtoStrReplacements.typeAllLowerCase + "serializer.h")};
+            implementationHeaderFile << formatTemplateWithDtoReplacements(implementationHeaderTemplate,
+                                                                          dtoStrReplacements);
         }
 
-        std::ofstream implementationSourceFile{root / ("json" + allLowerDtoType + "serializer.cpp")};
+        std::ofstream implementationSourceFile{root /
+                                               ("json" + dtoStrReplacements.typeAllLowerCase + "serializer.cpp")};
 
         std::string constantDefs;
         std::string serializeCode;
@@ -309,66 +324,77 @@ public:
 
         for (const FieldDecl* field : dto->fields())
         {
-            //field->getType()->getAs<TemplateSpecializationType>()->getArg(0).getAsType().getAsString();
             const std::string fieldType = field->getType().getAsString(pp);
             const std::string unqualifiedDtoType = unqualifyDtoType(field->getType());
             const std::string containedDtoType = uncontainDtoType(field->getType());
 
-            const std::string fieldName = field->getNameAsString();
-            const std::string camelCaseFieldName = camelCaseWord(fieldName);
-            const std::string pascalCaseFieldName = pascalCaseWord(fieldName);
+            const MemberStringReplacements memberStrReplacements = [&]() {
+                MemberStringReplacements replacements;
 
-            constantDefs += fmt::format(constantDefinitionTemplate, camelCaseDtoTypeWithoutDtoSuffix,
-                                        pascalCaseFieldName, camelCaseFieldName);
+                std::string typeUsed;
+                if (!unqualifiedDtoType.empty())
+                {
+                    typeUsed = unqualifiedDtoType;
+                }
+                else if (!containedDtoType.empty())
+                {
+                    typeUsed = containedDtoType;
+                }
+                else
+                {
+                    typeUsed = fieldType;
+                }
+
+                replacements.type = typeUsed;
+                replacements.name = field->getNameAsString();
+                replacements.nameCamelCase = camelCaseWord(replacements.name);
+                replacements.namePascalCase = pascalCaseWord(replacements.name);
+
+                return replacements;
+            }();
+
+            constantDefs += formatTemplateWithDtoAndMemberReplacements(constantDefinitionTemplate, dtoStrReplacements,
+                                                                       memberStrReplacements);
             constantDefs += "\n";
 
             if (!unqualifiedDtoType.empty())
             {
-                serializeCode += fmt::format(serializeDtoTemplate, camelCaseDtoTypeWithoutDtoSuffix,
-                                             pascalCaseFieldName, unqualifiedDtoType, fieldName);
+                serializeCode += formatTemplateWithDtoAndMemberReplacements(serializeDtoTemplate, dtoStrReplacements,
+                                                                            memberStrReplacements);
                 serializeCode += "\n";
 
-                deserializeCode += fmt::format(deserializeDtoTemplate, fieldName, unqualifiedDtoType,
-                                               camelCaseDtoTypeWithoutDtoSuffix, pascalCaseFieldName);
+                deserializeCode += formatTemplateWithDtoAndMemberReplacements(
+                    deserializeDtoTemplate, dtoStrReplacements, memberStrReplacements);
                 deserializeCode += "\n";
             }
             else if (!containedDtoType.empty())
             {
-                serializeCode += fmt::format(serializeDtoListTemplate, camelCaseDtoTypeWithoutDtoSuffix,
-                                             pascalCaseFieldName, containedDtoType, fieldName);
+                serializeCode += formatTemplateWithDtoAndMemberReplacements(serializeDtoListTemplate,
+                                                                            dtoStrReplacements, memberStrReplacements);
                 serializeCode += "\n";
 
-                deserializeCode += fmt::format(deserializeDtoListTemplate, fieldName, containedDtoType,
-                                               camelCaseDtoTypeWithoutDtoSuffix, pascalCaseFieldName);
+                deserializeCode += formatTemplateWithDtoAndMemberReplacements(
+                    deserializeDtoListTemplate, dtoStrReplacements, memberStrReplacements);
                 deserializeCode += "\n";
             }
             else
             {
-                serializeCode += fmt::format(serializePrimitiveTemplate, camelCaseDtoTypeWithoutDtoSuffix,
-                                             pascalCaseFieldName, fieldName);
+                serializeCode += formatTemplateWithDtoAndMemberReplacements(serializePrimitiveTemplate,
+                                                                            dtoStrReplacements, memberStrReplacements);
                 serializeCode += "\n";
 
-                deserializeCode += fmt::format(deserializePrimitiveTemplate, fieldName, fieldType,
-                                               camelCaseDtoTypeWithoutDtoSuffix, pascalCaseFieldName);
+                deserializeCode += formatTemplateWithDtoAndMemberReplacements(
+                    deserializePrimitiveTemplate, dtoStrReplacements, memberStrReplacements);
                 deserializeCode += "\n";
             }
         }
 
-        if (!constantDefs.empty())
-        {
-            constantDefs.pop_back();
-        }
-        if (!serializeCode.empty())
-        {
-            serializeCode.pop_back();
-        }
-        if (!deserializeCode.empty())
-        {
-            deserializeCode.pop_back();
-        }
+        dsg::Utils::removeTrailingNewline(constantDefs);
+        dsg::Utils::removeTrailingNewline(serializeCode);
+        dsg::Utils::removeTrailingNewline(deserializeCode);
 
         implementationSourceFile << fmt::format(implementationSourceTemplate, currentFile.filename().string(),
-                                                constantDefs, dtoType, serializeCode, deserializeCode);
+                                                constantDefs, dtoStrReplacements.type, serializeCode, deserializeCode);
 
         return true;
     }
