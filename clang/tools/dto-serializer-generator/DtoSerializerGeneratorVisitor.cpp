@@ -92,7 +92,14 @@ namespace dsg
                 }
                 else
                 {
-                    return std::make_pair(SerializerCodeGenerator::MemberType::Primitive, fieldType);
+                    if (fieldType == "qs::Uuid")
+                    {
+                        return std::make_pair(SerializerCodeGenerator::MemberType::Uuid, fieldType);
+                    }
+                    else
+                    {
+                        return std::make_pair(SerializerCodeGenerator::MemberType::Primitive, fieldType);
+                    }
                 }
             }();
 

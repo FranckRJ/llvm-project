@@ -13,6 +13,7 @@ namespace dsg
         enum class MemberType
         {
             Primitive,
+            Uuid,
             Dto,
             DtoVector
         };

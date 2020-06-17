@@ -158,6 +158,11 @@ namespace qs
 
         const std::string deserializePrimitiveTemplate = R"-(        dto.{8} = obj.getValue<{7}>(g_{4}{10});)-";
 
+        const std::string serializeUuidTemplate = R"-(        obj.set(g_{4}{10}, dto.{8}.toString());)-";
+
+        const std::string deserializeUuidTemplate =
+            R"-(        dto.{8} = Uuid{{ obj.getValue<std::string>(g_{4}{10}) }};)-";
+
         const std::string serializeDtoTemplate =
             R"-(        Poco::JSON::Object {9}SubObj = JsonDtoBuilder<{7}>::serializeToObject(dto.{8});
         obj.set(g_{4}{10}, std::move({9}SubObj));)-";
@@ -166,11 +171,11 @@ namespace qs
             R"-(        Poco::JSON::Object::Ptr {9}SubObjPtr = obj.getObject(g_{4}{10});
         dto.{8} = JsonDtoBuilder<{7}>::deserializeFromObject(*{9}SubObjPtr);)-";
 
-        const std::string serializeDtoListTemplate =
+        const std::string serializeDtoVectorTemplate =
             R"-(        Poco::JSON::Array {9}SubArr = JsonDtoBuilder<{7}>::serializeToArray(dto.{8});
         obj.set(g_{4}{10}, std::move({9}SubArr));)-";
 
-        const std::string deserializeDtoListTemplate =
+        const std::string deserializeDtoVectorTemplate =
             R"-(        Poco::JSON::Array::Ptr {9}SubArrPtr = obj.getArray(g_{4}{10});
         dto.{8} = JsonDtoBuilder<{7}>::deserializeFromArray(*{9}SubArrPtr);)-";
     } // namespace
@@ -214,30 +219,33 @@ namespace qs
             formatTemplateWithDtoAndMemberReplacements(constantDefinitionTemplate, memberStrReplacements);
         _constantDefsCode += "\n";
 
+        const std::string* serializeTemplatePtr;
+        const std::string* deserializeTemplatePtr;
+
         switch (memberType)
         {
             case MemberType::Primitive:
             {
-                _serializeCode +=
-                    formatTemplateWithDtoAndMemberReplacements(serializePrimitiveTemplate, memberStrReplacements);
-                _deserializeCode +=
-                    formatTemplateWithDtoAndMemberReplacements(deserializePrimitiveTemplate, memberStrReplacements);
+                serializeTemplatePtr = &serializePrimitiveTemplate;
+                deserializeTemplatePtr = &deserializePrimitiveTemplate;
+                break;
+            }
+            case MemberType::Uuid:
+            {
+                serializeTemplatePtr = &serializeUuidTemplate;
+                deserializeTemplatePtr = &deserializeUuidTemplate;
                 break;
             }
             case MemberType::Dto:
             {
-                _serializeCode +=
-                    formatTemplateWithDtoAndMemberReplacements(serializeDtoTemplate, memberStrReplacements);
-                _deserializeCode +=
-                    formatTemplateWithDtoAndMemberReplacements(deserializeDtoTemplate, memberStrReplacements);
+                serializeTemplatePtr = &serializeDtoTemplate;
+                deserializeTemplatePtr = &deserializeDtoTemplate;
                 break;
             }
             case MemberType::DtoVector:
             {
-                _serializeCode +=
-                    formatTemplateWithDtoAndMemberReplacements(serializeDtoListTemplate, memberStrReplacements);
-                _deserializeCode +=
-                    formatTemplateWithDtoAndMemberReplacements(deserializeDtoListTemplate, memberStrReplacements);
+                serializeTemplatePtr = &serializeDtoVectorTemplate;
+                deserializeTemplatePtr = &deserializeDtoVectorTemplate;
                 break;
             }
             default:
@@ -246,7 +254,10 @@ namespace qs
             }
         }
 
+        _serializeCode += formatTemplateWithDtoAndMemberReplacements(*serializeTemplatePtr, memberStrReplacements);
         _serializeCode += "\n";
+
+        _deserializeCode += formatTemplateWithDtoAndMemberReplacements(*deserializeTemplatePtr, memberStrReplacements);
         _deserializeCode += "\n";
     }
 
