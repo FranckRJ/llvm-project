@@ -4,6 +4,8 @@ add_clang_tool(dto-serializer-generator
         main.cpp
         CliOptionsManager.cpp
         CliOptionsManager.hpp
+        SerializerCodeGenerator.cpp
+        SerializerCodeGenerator.hpp
         Utils.cpp
         Utils.hpp
         )

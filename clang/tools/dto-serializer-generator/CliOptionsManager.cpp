@@ -187,7 +187,8 @@ file                                    The files to scan.
 clang-options                           The options to pass to clang.
 
 {0} options:
-{2})-";
+{2}
+)-";
 
         static std::string optionTemplate = R"-({0:<40}{1})-";
 
@@ -198,7 +199,7 @@ clang-options                           The options to pass to clang.
             optionText += fmt::format(optionTemplate, option.name + " " + option.kindOfValue, option.description);
             optionText += "\n";
         }
-        Utils::removeTrailingNewline(optionText);
+        optionText = Utils::removeTrailingNewline(optionText);
 
         std::cerr << fmt::format(helpTemplate, _command.name, _command.name + "-options", optionText);
     }
