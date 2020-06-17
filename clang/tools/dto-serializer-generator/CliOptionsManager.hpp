@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "clang/Tooling/CommonOptionsParser.h"
+#include <clang/Tooling/CommonOptionsParser.h>
 
 namespace dsg
 {
@@ -32,7 +32,7 @@ namespace dsg
             std::vector<Option> possibleOptions;
         };
 
-        CliOptionsManager(Command command, int argc, const char** argv);
+        explicit CliOptionsManager(Command command, int argc, const char** argv);
 
         bool commandIsValid();
 

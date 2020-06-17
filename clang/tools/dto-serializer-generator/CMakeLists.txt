@@ -4,6 +4,12 @@ add_clang_tool(dto-serializer-generator
         main.cpp
         CliOptionsManager.cpp
         CliOptionsManager.hpp
+        DtoSerializerGeneratorAstConsumer.cpp
+        DtoSerializerGeneratorAstConsumer.hpp
+        DtoSerializerGeneratorFrontendAction.cpp
+        DtoSerializerGeneratorFrontendAction.hpp
+        DtoSerializerGeneratorVisitor.cpp
+        DtoSerializerGeneratorVisitor.hpp
         SerializerCodeGenerator.cpp
         SerializerCodeGenerator.hpp
         Utils.cpp

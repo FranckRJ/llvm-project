@@ -18,8 +18,8 @@ namespace dsg
         };
 
     public:
-        SerializerCodeGenerator(std::filesystem::path rootOfGeneration, const std::string& dtoDefFileName,
-                                const std::string& dtoTypeName);
+        explicit SerializerCodeGenerator(std::filesystem::path rootOfGeneration, const std::string& dtoDefFileName,
+                                         const std::string& dtoTypeName);
 
         void generateInterfaceHeader();
 
