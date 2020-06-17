@@ -12,72 +12,21 @@
 #include "SerializerCodeGenerator.hpp"
 #include "Utils.hpp"
 
-using namespace clang::tooling;
-using namespace clang;
-using namespace llvm;
-
 namespace fs = std::filesystem;
 
 std::string directoryForGeneration;
 std::string dtoToSerialize;
-PrintingPolicy pp{LangOptions{}};
+clang::PrintingPolicy pp{clang::LangOptions{}};
 
-class DtoSerializerGeneratorVisitor : public RecursiveASTVisitor<DtoSerializerGeneratorVisitor>
+class DtoSerializerGeneratorVisitor : public clang::RecursiveASTVisitor<DtoSerializerGeneratorVisitor>
 {
-private:
-    ASTContext* astContext;
-    fs::path currentFile;
-
-    static std::string unqualifyDtoType(QualType type)
-    {
-        std::string name = type.getAsString();
-
-        if (name.size() <= 3 || (name.substr(name.size() - 3) != "Dto" && name.substr(name.size() - 3) != "DTO"))
-        {
-            return "";
-        }
-
-        auto* tagDecl = type->getUnqualifiedDesugaredType()->getAsTagDecl();
-
-        if (tagDecl)
-        {
-            return tagDecl->getNameAsString();
-        }
-        else
-        {
-            std::cerr << "Error : impossible to get unqualified type of '" << type.getAsString() << "'\n";
-            return "";
-        }
-    }
-
-    static std::string uncontainDtoType(QualType type)
-    {
-        auto* record = type->getAsRecordDecl();
-
-        if (!record || record->getQualifiedNameAsString() != "std::vector")
-        {
-            return "";
-        }
-
-        const auto* templateSpec = type->getAs<TemplateSpecializationType>();
-        if (templateSpec && templateSpec->getNumArgs() > 0)
-        {
-            return unqualifyDtoType(templateSpec->getArg(0).getAsType());
-        }
-        else
-        {
-            std::cerr << "Error : impossible to get type contained inside '" << type.getAsString() << "'\n";
-            return "";
-        }
-    }
-
 public:
-    explicit DtoSerializerGeneratorVisitor(CompilerInstance* CI, StringRef file)
-        : astContext{&(CI->getASTContext())}, currentFile{file.str()}
+    explicit DtoSerializerGeneratorVisitor(clang::CompilerInstance* compilerInstance, llvm::StringRef file)
+        : _astContext{&(compilerInstance->getASTContext())}, _currentFile{file.str()}
     {
     }
 
-    bool VisitCXXRecordDecl(CXXRecordDecl* dto)
+    bool VisitCXXRecordDecl(clang::CXXRecordDecl* dto)
     {
         if (!(dto->isCompleteDefinition()) || dto->getNameAsString() != dtoToSerialize)
         {
@@ -87,12 +36,12 @@ public:
         fs::path root{directoryForGeneration};
         root.make_preferred();
 
-        dsg::SerializerCodeGenerator serializerCodeGenerator{root, currentFile.filename().string(), dtoToSerialize};
+        dsg::SerializerCodeGenerator serializerCodeGenerator{root, _currentFile.filename().string(), dtoToSerialize};
 
         serializerCodeGenerator.generateInterfaceHeader();
         serializerCodeGenerator.generateImplementationHeader();
 
-        for (const FieldDecl* field : dto->fields())
+        for (const clang::FieldDecl* field : dto->fields())
         {
             const std::string fieldType = field->getType().getAsString(pp);
             const std::string unqualifiedDtoType = unqualifyDtoType(field->getType());
@@ -120,32 +69,80 @@ public:
 
         return true;
     }
-};
 
-class DtoSerializerGeneratorASTConsumer : public ASTConsumer
-{
 private:
-    DtoSerializerGeneratorVisitor* visitor;
+    clang::ASTContext* _astContext;
+    fs::path _currentFile;
 
-public:
-    explicit DtoSerializerGeneratorASTConsumer(CompilerInstance* CI, StringRef file)
-        : visitor(new DtoSerializerGeneratorVisitor(CI, file))
+    static std::string unqualifyDtoType(clang::QualType type)
     {
+        std::string name = type.getAsString();
+
+        if (name.size() <= 3 || (name.substr(name.size() - 3) != "Dto" && name.substr(name.size() - 3) != "DTO"))
+        {
+            return "";
+        }
+
+        auto* tagDecl = type->getUnqualifiedDesugaredType()->getAsTagDecl();
+
+        if (tagDecl)
+        {
+            return tagDecl->getNameAsString();
+        }
+        else
+        {
+            std::cerr << "Error : impossible to get unqualified type of '" << type.getAsString() << "'\n";
+            return "";
+        }
     }
 
-    void HandleTranslationUnit(ASTContext& Context) override
+    static std::string uncontainDtoType(clang::QualType type)
     {
-        visitor->TraverseDecl(Context.getTranslationUnitDecl());
+        auto* record = type->getAsRecordDecl();
+
+        if (!record || record->getQualifiedNameAsString() != "std::vector")
+        {
+            return "";
+        }
+
+        const auto* templateSpec = type->getAs<clang::TemplateSpecializationType>();
+        if (templateSpec && templateSpec->getNumArgs() > 0)
+        {
+            return unqualifyDtoType(templateSpec->getArg(0).getAsType());
+        }
+        else
+        {
+            std::cerr << "Error : impossible to get type contained inside '" << type.getAsString() << "'\n";
+            return "";
+        }
     }
 };
 
-class DtoSerializerGeneratorFrontendAction : public ASTFrontendAction
+class DtoSerializerGeneratorASTConsumer : public clang::ASTConsumer
 {
 public:
-    std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance& CI, StringRef file) override
+    explicit DtoSerializerGeneratorASTConsumer(clang::CompilerInstance* compilerInstance, llvm::StringRef file)
+        : _dtoSerializerGeneratorVisitor{compilerInstance, file}
     {
-        pp = PrintingPolicy{CI.getLangOpts()};
-        return std::make_unique<DtoSerializerGeneratorASTConsumer>(&CI, file);
+    }
+
+    void HandleTranslationUnit(clang::ASTContext& Context) override
+    {
+        _dtoSerializerGeneratorVisitor.TraverseDecl(Context.getTranslationUnitDecl());
+    }
+
+private:
+    DtoSerializerGeneratorVisitor _dtoSerializerGeneratorVisitor;
+};
+
+class DtoSerializerGeneratorFrontendAction : public clang::ASTFrontendAction
+{
+public:
+    std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance& compilerInstance,
+                                                          llvm::StringRef file) override
+    {
+        pp = clang::PrintingPolicy{compilerInstance.getLangOpts()};
+        return std::make_unique<DtoSerializerGeneratorASTConsumer>(&compilerInstance, file);
     }
 };
 
@@ -163,12 +160,12 @@ int main(int argc, const char** argv)
 
     if (optManager.commandIsValid())
     {
-        CommonOptionsParser op = optManager.buildOptionsParser();
+        clang::tooling::CommonOptionsParser op = optManager.buildOptionsParser();
         directoryForGeneration = optManager.getOptionValue("-o");
         dtoToSerialize = optManager.getOptionValue("-c");
 
-        ClangTool tool(op.getCompilations(), op.getSourcePathList());
-        return tool.run(newFrontendActionFactory<DtoSerializerGeneratorFrontendAction>().get());
+        clang::tooling::ClangTool tool(op.getCompilations(), op.getSourcePathList());
+        return tool.run(clang::tooling::newFrontendActionFactory<DtoSerializerGeneratorFrontendAction>().get());
     }
     else
     {
