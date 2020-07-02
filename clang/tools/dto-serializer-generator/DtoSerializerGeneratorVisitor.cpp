@@ -1,6 +1,7 @@
 #include "DtoSerializerGeneratorVisitor.hpp"
 
 #include <iostream>
+#include <optional>
 
 #include "SerializerCodeGenerator.hpp"
 
@@ -10,13 +11,13 @@ namespace dsg
 {
     namespace
     {
-        std::string unqualifyDtoType(clang::QualType type)
+        std::optional<std::string> unqualifyDtoType(clang::QualType type)
         {
             std::string name = type.getAsString();
 
             if (name.size() <= 3 || (name.substr(name.size() - 3) != "Dto" && name.substr(name.size() - 3) != "DTO"))
             {
-                return "";
+                return std::nullopt;
             }
 
             auto* tagDecl = type->getUnqualifiedDesugaredType()->getAsTagDecl();
@@ -28,17 +29,17 @@ namespace dsg
             else
             {
                 std::cerr << "Error : impossible to get unqualified type of '" << type.getAsString() << "'\n";
-                return "";
+                return std::nullopt;
             }
         }
 
-        std::string uncontainDtoType(clang::QualType type)
+        std::optional<std::string> uncontainDtoType(clang::QualType type)
         {
             auto* record = type->getAsRecordDecl();
 
             if (!record || record->getQualifiedNameAsString() != "std::vector")
             {
-                return "";
+                return std::nullopt;
             }
 
             const auto* templateSpec = type->getAs<clang::TemplateSpecializationType>();
@@ -49,7 +50,7 @@ namespace dsg
             else
             {
                 std::cerr << "Error : impossible to get type contained inside '" << type.getAsString() << "'\n";
-                return "";
+                return std::nullopt;
             }
         }
     } // namespace
@@ -78,17 +79,17 @@ namespace dsg
         for (const clang::FieldDecl* field : dto->fields())
         {
             const std::string fieldType = field->getType().getAsString(_config.printingPolicy);
-            const std::string unqualifiedDtoType = unqualifyDtoType(field->getType());
-            const std::string containedDtoType = uncontainDtoType(field->getType());
+            const std::optional<std::string> unqualifiedDtoType = unqualifyDtoType(field->getType());
+            const std::optional<std::string> containedDtoType = uncontainDtoType(field->getType());
 
             const auto [memberType, memberTypeName] = [&]() {
-                if (!unqualifiedDtoType.empty())
+                if (unqualifiedDtoType)
                 {
-                    return std::make_pair(SerializerCodeGenerator::MemberType::Dto, unqualifiedDtoType);
+                    return std::make_pair(SerializerCodeGenerator::MemberType::Dto, *unqualifiedDtoType);
                 }
-                else if (!containedDtoType.empty())
+                else if (containedDtoType)
                 {
-                    return std::make_pair(SerializerCodeGenerator::MemberType::DtoVector, containedDtoType);
+                    return std::make_pair(SerializerCodeGenerator::MemberType::DtoVector, *containedDtoType);
                 }
                 else
                 {
