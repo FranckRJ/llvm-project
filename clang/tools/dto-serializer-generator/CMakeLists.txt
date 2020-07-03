@@ -27,12 +27,15 @@ set(DTO_SERIALIZER_GENERATOR_LIB_DEPS
 set_target_properties(dto-serializer-generator PROPERTIES
         CXX_STANDARD 17
         CXX_STANDARD_REQUIRED YES
-        CXX_EXTENSIONS NO)
+        CXX_EXTENSIONS NO
+        )
 
 target_compile_definitions(dto-serializer-generator PRIVATE _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS)
+
+find_package(fmt)
 
 clang_target_link_libraries(dto-serializer-generator
         PRIVATE
         ${DTO_SERIALIZER_GENERATOR_LIB_DEPS}
-        ${CONAN_LIBS}
+        fmt::fmt
         )

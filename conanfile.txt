@@ -2,6 +2,6 @@
 fmt/6.2.1
 
 [generators]
-cmake
+cmake_find_package
 
 [options]
