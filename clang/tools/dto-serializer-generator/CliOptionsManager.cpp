@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <iostream>
-#include <stdexcept>
 
 #include <fmt/format.h>
 
@@ -73,7 +72,8 @@ namespace dsg
     {
         if (!_commandIsValid)
         {
-            throw std::runtime_error{"Lol what are you doing ?"};
+            std::cerr << "y u do dis ?\n";
+            std::terminate();
         }
 
         _fakeArgv.push_back(_command.name.c_str());

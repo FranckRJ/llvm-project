@@ -1,7 +1,7 @@
 #include "SerializerCodeGenerator.hpp"
 
 #include <fstream>
-#include <stdexcept>
+#include <iostream>
 #include <string_view>
 
 #include <fmt/format.h>
@@ -250,7 +250,8 @@ namespace qs
             }
             default:
             {
-                throw std::runtime_error{"Wtf man ?"};
+                std::cerr << "lol buggyyyyy\n";
+                std::terminate();
             }
         }
 
