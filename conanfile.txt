@@ -1,5 +1,5 @@
 [requires]
-fmt/6.2.1
+fmt/7.0.1
 
 [generators]
 cmake_find_package
