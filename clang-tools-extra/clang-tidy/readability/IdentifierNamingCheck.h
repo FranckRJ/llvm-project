@@ -45,6 +45,7 @@ public:
 
   enum CaseType {
     CT_AnyCase = 0,
+    CT_OnlyLowerCase,
     CT_LowerCase,
     CT_CamelBack,
     CT_UpperCase,

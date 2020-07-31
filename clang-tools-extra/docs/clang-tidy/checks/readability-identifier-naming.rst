@@ -11,6 +11,7 @@ another if a mismatch is detected
 
 Casing types include:
 
+ - ``onlylowercase``.
  - ``lower_case``,
  - ``UPPER_CASE``,
  - ``camelBack``,

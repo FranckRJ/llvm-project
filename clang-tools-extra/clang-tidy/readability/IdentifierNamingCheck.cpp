@@ -168,6 +168,7 @@ IdentifierNamingCheck::IdentifierNamingCheck(StringRef Name,
   auto const fromString = [](StringRef Str) {
     return llvm::StringSwitch<llvm::Optional<CaseType>>(Str)
         .Case("aNy_CasE", CT_AnyCase)
+        .Case("onlylowercase", CT_OnlyLowerCase)
         .Case("lower_case", CT_LowerCase)
         .Case("UPPER_CASE", CT_UpperCase)
         .Case("camelBack", CT_CamelBack)
@@ -200,6 +201,8 @@ void IdentifierNamingCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
     switch (Type) {
     case CT_AnyCase:
       return "aNy_CasE";
+    case CT_OnlyLowerCase:
+      return "onlylowercase";
     case CT_LowerCase:
       return "lower_case";
     case CT_CamelBack:
@@ -335,6 +338,14 @@ static std::string fixupWithCase(StringRef Name,
   case IdentifierNamingCheck::CT_AnyCase:
     Fixup += Name;
     break;
+
+  case IdentifierNamingCheck::CT_OnlyLowerCase: {
+    std::string LoweredName = Name.lower();
+    LoweredName.erase(std::remove(LoweredName.begin(), LoweredName.end(), '_'),
+                      LoweredName.end());
+    Fixup += LoweredName;
+    break;
+  }
 
   case IdentifierNamingCheck::CT_LowerCase:
     for (auto const &Word : Words) {
